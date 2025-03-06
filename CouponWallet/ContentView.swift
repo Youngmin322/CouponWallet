@@ -8,14 +8,23 @@
 import SwiftUI
 
 struct ContentView: View {
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        NavigationView {
+            List {
+                // 구현 예정...
+            }
+            .navigationTitle("기프티콘")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        // 새 기프티콘 추가
+                    }) {
+                        Image(systemName: "plus")
+                    }
+                }
+            }
         }
-        .padding()
     }
 }
 
