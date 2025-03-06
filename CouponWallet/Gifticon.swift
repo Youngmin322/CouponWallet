@@ -41,3 +41,14 @@ class Gifticon {
         return formatter.string(from: expirationDate)
     }
 }
+// Gifticon 더미 데이터
+extension Gifticon {
+    static let dummyData: [Gifticon] = [
+        Gifticon(brand: "스타벅스", productName: "카페아메리카노 T", expirationDate: Date().addingTimeInterval(-86400), isUsed: false, imagePath: "", price: 4150, originalPrice: 4700),
+        Gifticon(brand: "스타벅스", productName: "카페아메리카노 T", expirationDate: Date().addingTimeInterval(-604800), isUsed: false, imagePath: "", price: 4050, originalPrice: 4700),
+        Gifticon(brand: "GS25", productName: "빙그레 바나나우유", expirationDate: Date().addingTimeInterval(-259200), isUsed: true, imagePath: "", price: 1200, originalPrice: 1800),
+        Gifticon(brand: "스타벅스", productName: "카페아메리카노 T", expirationDate: Date().addingTimeInterval(-86400), isUsed: false, imagePath: "", price: 4150, originalPrice: 4700),
+        Gifticon(brand: "스타벅스", productName: "카페아메리카노 T", expirationDate: Date().addingTimeInterval(-604800), isUsed: false, imagePath: "", price: 4050, originalPrice: 4700),
+        Gifticon(brand: "GS25", productName: "빙그레 바나나우유", expirationDate: Date().addingTimeInterval(-259200), isUsed: true, imagePath: "", price: 1200, originalPrice: 1800)
+    ]
+}
