@@ -8,6 +8,9 @@
 import SwiftUI
 import SwiftData
 
+/*
+ ExpiredView: 사용 완료 및 만료된 쿠폰 뷰 구현 (쿠폰에 회색 이미지 처리로 구별 되도록), 삭제 기능 -> 휴지통으로 가는 삭제 기능
+ */
 struct ExpiredView: View {
     @State private var selectedFilter = "전체"
     let filters = ["전체", "스타벅스", "치킨", "CU", "GS25", "다이소"]
