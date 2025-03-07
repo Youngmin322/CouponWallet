@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct SelectedCouponView: View {
     @Binding var selectedGifticons: [Gifticon]
@@ -62,23 +63,25 @@ struct SelectedCouponView: View {
             .padding()
             
             HStack {
-                Button("쿠폰 사용하지 않기") {
+                Spacer()
+                Button("사용하지 않기") {
                     // 홈 화면으로 돌아가기
                     selectedIndex = -1
                 }
+                .frame(maxWidth: .infinity)
                 .padding()
                 .background(Color.gray.opacity(0.2))
                 .cornerRadius(10)
-                
                 Spacer()
-                
-                Button("쿠폰 사용하기") {
+                Button("사용하기") {
                     selectedGifticons[selectedIndex].isUsed = true
                 }
+                .frame(maxWidth: .infinity)
                 .padding()
                 .background(Color.red)
                 .foregroundColor(.white)
                 .cornerRadius(10)
+                Spacer()
             }
             .padding()
         }
@@ -86,17 +89,45 @@ struct SelectedCouponView: View {
     }
 }
 
-#Preview {
-    SelectedCouponView(selectedGifticons: .constant([
-        Gifticon(brand: "Brand name", productName: "sampleImage", expirationDate: dateFormatter.date(from: "2025-12-31")!, isUsed: false, imagePath: "", price: 30000, originalPrice: 33000)
-    ]), selectedIndex: 0, isExpired: false)
+struct SelectedCouponCell: View {
+    var selectedCoupon: Gifticon
+    
+    var body: some View {
+        Form {
+            Section(header: Text("선택 쿠폰")) {
+                Image(selectedCoupon.imagePath)
+                    .resizable()
+                    .clipShape(.rect(cornerRadius: 12))
+                    .aspectRatio(contentMode: .fit)
+                    .padding()
+                Text(selectedCoupon.productName)
+                    .font(.headline)
+                Text(selectedCoupon.brand)
+                    .font(.body)
+                Text("\(selectedCoupon.price) 원")
+                    .font(.body)
+                Text(selectedCoupon.expirationDate, style: .date)
+                    .font(.body)
+                HStack {
+                    Text("사용 여부")
+                        .font(.headline)
+                    Spacer()
+                    Image(systemName: selectedCoupon.isUsed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                
+            }
+        }
+    }
 }
 
-let dateFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.dateFormat = "yyyy-MM-dd"
-    return formatter
-}()
+#Preview {
+    SelectedCouponView(selectedCoupons: coupons[0], selectedIndex: 0, isExpired: false)
+}
+
+//let dateFormatter: DateFormatter = {
+//    let formatter = DateFormatter()
+//    formatter.dateFormat = "yyyy-MM-dd"
+//    return formatter
+//}()
 
 
 //        VStack() {
