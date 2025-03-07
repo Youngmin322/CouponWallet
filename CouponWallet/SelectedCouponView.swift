@@ -8,84 +8,45 @@
 import SwiftUI
 import SwiftData
 
-//struct SelectedCouponView: View {
-//    let selectedGifticons: [Gifticon]
-//    @State var selectedIndex: Int
-//    @Binding @State var isUsed: Bool
-//    
-//    var body: some View {
-//        VStack {
-//            SelectedCouponCell(selectedCoupon: coupons)
-//            ZStack {
-//                Image(selectedGifticons[selectedIndex].productName)
-//                    .resizable()
-//                    .scaledToFit()
-//                    .frame(width: 300, height: 300)
-//                    .overlay(
-//                        selectedGifticons[selectedIndex].isUsed ?
-//                        Color.gray.opacity(0.5) : Color.clear // 사용된 쿠폰에 회색 필터 적용
-//                    )
-//                
-//                // 스와이프 제스처 감지
-//                HStack {
-//                    if selectedIndex > 0 {
-//                        Button(action: {
-//                            selectedIndex -= 1
-//                        }) {
-//                            Image(systemName: "chevron.left")
-//                                .font(.largeTitle)
-//                                .padding()
-//                        }
-//                    }
-//
-//                    Spacer()
-//                    
-//                    if selectedIndex < selectedGifticons.count - 1 {
-//                        Button(action: {
-//                            selectedIndex += 1
-//                        }) {
-//                            Image(systemName: "chevron.right")
-//                                .font(.largeTitle)
-//                                .padding()
-//                        }
-//                    }
-//                }
-//            }
-//            .gesture(DragGesture().onEnded { value in
-//                if value.translation.width < -50 && selectedIndex < selectedGifticons.count - 1 {
-//                    selectedIndex += 1 // 오른쪽으로 스와이프하면 다음 쿠폰
-//                } else if value.translation.width > 50 && selectedIndex > 0 {
-//                    selectedIndex -= 1 // 왼쪽으로 스와이프하면 이전 쿠폰
-//                }
-//            })
-//            .padding()
+struct SelectedCouponView: View {
+    let selectedGifticons = Gifticon.coupons
+    @State private var selectedIndex: Int = 0
+    
+    var body: some View {
+        TabView(selection: $selectedIndex) {
+            ForEach(0..<selectedGifticons.count, id: \.self) { index in
+                SelectedCouponCell(selectedCoupon: selectedGifticons[index])
+            }
+        }
+        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .always)) // 페이지 스타일 적용
+        .animation(.easeInOut, value: selectedIndex) // 부드러운 애니메이션 효과
+        
+        HStack {
+            Spacer()
+            Button("사용하지 않기") {
+                // 홈 화면으로 돌아가기
+                AvailableGifticonView()
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Color.gray.opacity(0.2))
+            .cornerRadius(10)
+            Spacer()
             
-//            HStack {
-//                Spacer()
-//                Button("사용하지 않기") {
-//                    // 홈 화면으로 돌아가기
-//                    selectedIndex = -1
-//                }
-//                .frame(maxWidth: .infinity)
-//                .padding()
-//                .background(Color.gray.opacity(0.2))
-//                .cornerRadius(10)
-//                Spacer()
-//                Button("사용하기") {
-//                    selectedGifticons[selectedIndex].isUsed = true
-//                }
-//                .frame(maxWidth: .infinity)
-//                .padding()
-//                .background(Color.red)
-//                .foregroundColor(.white)
-//                .cornerRadius(10)
-//                Spacer()
-//            }
-//            .padding()
-//        }
-//        .navigationBarBackButtonHidden(true)
-//    }
-//}
+            Button("사용하기") {
+                selectedGifticons[selectedIndex].isUsed = true
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Color.blue)
+            .foregroundColor(.white)
+            .cornerRadius(10)
+            Spacer()
+        }
+        .padding()
+    }
+}
+            
 
 struct SelectedCouponCell: View {
     var selectedCoupon: Gifticon
@@ -105,24 +66,15 @@ struct SelectedCouponCell: View {
                 Text("쿠폰 사용기간 만료일: ~ \(selectedCoupon.formattedExpiryDate) 까지")
                     .font(.body)
                 HStack {
-                    Text("사용 여부")
+                    Image(systemName: selectedCoupon.isUsed ? "xmark.circle.fill" : "checkmark.circle.fill")
+                    Text(selectedCoupon.isUsed ? "사용 불가" : "사용 가능")
                         .font(.body)
-                    Spacer()
-                    Image(systemName: selectedCoupon.isUsed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    
                 }
             }
         }
     }
 }
 
-//#Preview {
-//    SelectedCouponView(selectedCoupons: coupons[0], selectedIndex: 0, isExpired: false)
-//
-////    SelectedCouponView()
-////        .modelContainer(for: Gifticon.self, inMemory: true)
-//}
-
 #Preview {
-    SelectedCouponCell(selectedCoupon: Gifticon.coupons[1])
+    SelectedCouponView()
 }
