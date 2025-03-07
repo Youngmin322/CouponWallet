@@ -10,7 +10,8 @@ import SwiftData
 
 struct ContentView: View {
     @State private var selectedTab = 0 // 0: 보유, 1: 사용·만료, 2: 설정
-    
+    // 삭제된 기프티콘을 저장하는 배열 (휴지통 기능을 위해 사용)
+    @State var deletedGifticons: [Gifticon] = []
     var body: some View {
         TabView(selection: $selectedTab) {
             // 보유 탭
@@ -22,7 +23,7 @@ struct ContentView: View {
                 .tag(0)
             
             // 사용·만료 탭
-            ExpiredView()
+            ExpiredView(deletedGifticons: $deletedGifticons)
                 .tabItem {
                     Image(systemName: "clock.fill")
                     Text("사용·만료")
@@ -30,7 +31,7 @@ struct ContentView: View {
                 .tag(1)
             
             // 설정 탭
-            SettingView()
+            SettingView(deletedGifticons: $deletedGifticons)
                 .tabItem {
                     Image(systemName: "gearshape.fill")
                     Text("설정")
@@ -97,7 +98,7 @@ struct AvailableGifticonView: View {
                     ScrollView {
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                             ForEach(filteredGifticons) { gifticon in
-                                GifticonCard(gifticon: gifticon, isExpired: false)
+                                GifticonCard(gifticon: gifticon, status: nil)
                             }
                         }
                         .padding()
@@ -111,6 +112,6 @@ struct AvailableGifticonView: View {
 }
 
 #Preview {
-    ContentView()
+    ContentView(deletedGifticons: Gifticon.dummyData)
         .modelContainer(for: Gifticon.self, inMemory: true)
 }

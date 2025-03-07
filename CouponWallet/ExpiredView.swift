@@ -8,54 +8,68 @@
 import SwiftUI
 import SwiftData
 
+enum GifticonStatus: String, CaseIterable {
+    case used = "사용 완료"
+    case expired = "만료"
+}
+
 struct ExpiredView: View {
+    // 날짜 정렬 기준 (true: 최신순, false: 오래된 순)
+    @State private var sortByDateDesc: Bool = true
+    // 삭제 확인 알림창을 표시할지 여부
     @State private var showDeleteAlert: Bool = false
-    @State private var selectedFilter = "전체"
+    // 선택한 상태 필터 (전체 / 사용 완료 / 만료)
+    @State private var selectedGifticonStatusFilter: String = "전체"
+    // 체크 모드 - 삭제 -> 휴지통이동
     @State private var isCheckMode: Bool = false
+    // 선택한 기프티콘
     @State private var selectedGifticon: Gifticon?
-    // 더미 데이터
+    // 만료된 기프티콘 데이터 (더미 데이터 사용)
     @State private var expiredGifticons: [Gifticon] = Gifticon.dummyData
+    // 삭제된 기프티콘 목록을 부모 뷰(ContentView)에서 전달받음
+    @Binding var deletedGifticons: [Gifticon]
+
+    // 상태 필터 배열 (전체, 사용 완료, 만료)
+    let gifticonStatusFilter: [String] = ["전체"] + GifticonStatus.allCases.map { $0.rawValue }
     
-    let filters = ["전체", "스타벅스", "치킨", "CU", "GS25", "다이소"]
+    // isUsed 및 expirationDate를 기반으로 상태 결정
+    func determineGifticonStatus(_ gifticon: Gifticon) -> String {
+        return gifticon.isUsed ? GifticonStatus.used.rawValue : GifticonStatus.expired.rawValue
+    }
     
-    // 필터링된 쿠폰 목록
+    // 필터 적용 -> 전체, 사용 완료, 만료
     var filteredGifticons: [Gifticon] {
-        if selectedFilter == "전체" {
-            return expiredGifticons
-        } else {
-            return expiredGifticons.filter { $0.brand == selectedFilter }
+        expiredGifticons.filter { gifticon in
+            let status = determineGifticonStatus(gifticon)
+            return selectedGifticonStatusFilter == "전체" || status == selectedGifticonStatusFilter
         }
     }
-    /* swiftData 사용할때
-    @Query private var expiredGifticons: [Gifticon]
-        
-        init() {
-            let now = Date()
-            // 사용되었거나 만료된 기프티콘
-            let predicate = #Predicate<Gifticon> { gifticon in
-                gifticon.isUsed || gifticon.expirationDate <= now
-            }
-            _expiredGifticons = Query(filter: predicate, sort: [SortDescriptor(\.expirationDate, order: .reverse)])
+
+    // 정렬된 기프티콘 목록 반환
+    var sortedGifticons: [Gifticon] {
+        filteredGifticons.sorted {
+            sortByDateDesc ? $0.expirationDate > $1.expirationDate : $0.expirationDate < $1.expirationDate
         }
-    */
+    }
+    
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
-                // 필터 옵션
-                ScrollView(.horizontal, showsIndicators: false) {
+                // 사용 완료 / 만료 필터 옵션만 유지
+                //ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
-                        ForEach(filters, id: \.self) { filter in
-                            FilterButton(title: filter, isSelected: filter == selectedFilter) {
-                                selectedFilter = filter
+                        ForEach(gifticonStatusFilter, id: \.self) { filter in
+                            FilterButton(title: filter, isSelected: filter == selectedGifticonStatusFilter) {
+                                selectedGifticonStatusFilter = filter
                             }
                         }
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 10)
-                }
+                //}
                 
-                // 기프티콘 그리드
-                if filteredGifticons.isEmpty {
+                
+                if sortedGifticons.isEmpty {
                     Spacer()
                     Text("표시할 만료된 쿠폰이 없습니다")
                         .foregroundColor(.gray)
@@ -63,12 +77,11 @@ struct ExpiredView: View {
                 } else {
                     ScrollView {
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                            ForEach(filteredGifticons) { gifticon in
+                            // 정렬된 기프티콘 리스트 사용
+                            ForEach(sortedGifticons) { gifticon in
                                 ZStack {
-                                    // 원래 기프티콘 카드
-                                    GifticonCard(gifticon: gifticon, isExpired: true)
+                                    GifticonCard(gifticon: gifticon, status: determineGifticonStatus(gifticon))
                                     
-                                    // 체크 모드일 때 중앙에 체크 아이콘 표시
                                     if isCheckMode {
                                         Button {
                                             selectedGifticon = gifticon
@@ -81,7 +94,7 @@ struct ExpiredView: View {
                                                 .background(Circle().fill(Color.white).opacity(0.8))
                                                 .clipShape(Circle())
                                         }
-                                        .position(x: 90, y: 60) // 중앙 정렬 (기프티콘 이미지 크기에 맞춰 조정)
+                                        .position(x: 90, y: 60)
                                     }
                                 }
                             }
@@ -92,21 +105,29 @@ struct ExpiredView: View {
             }
             .navigationTitle("사용·만료")
             .navigationBarTitleDisplayMode(.inline)
-            // 체크 모드 활성 - 비활성화
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    // 정렬 버튼 (최신순/오래된 순 토글)
+                    Button {
+                        sortByDateDesc.toggle()
+                    } label: {
+                        Image(systemName: "arrow.up.arrow.down")
+                            .foregroundStyle(.black)
+                    }
+                    // 체크 모드 활성화를 통해 선택한 쿠폰을 휴지통으로 보냄
                     Button {
                         isCheckMode.toggle()
                     } label: {
                         Image(systemName: isCheckMode ? "xmark.circle" : "trash")
-                            .foregroundColor(.red)
+                            .foregroundStyle(.red)
                     }
                 }
             }
-           
-            .alert("이 기프티콘을 삭제하시겠습니까?", isPresented: $showDeleteAlert) {
+            .alert("이 쿠폰을 삭제하시겠습니까?", isPresented: $showDeleteAlert) {
                 Button("삭제", role: .destructive) {
                     if let selected = selectedGifticon {
+                        // 휴지통에 저장 하기 위해 추가
+                        deletedGifticons.append(selected)
                         expiredGifticons.removeAll { $0.id == selected.id }
                         print("\(selected.productName) 삭제됨")
                     }
@@ -116,7 +137,7 @@ struct ExpiredView: View {
                     showDeleteAlert = false
                 }
             } message: {
-                Text("해당 쿠폰은 휴지통으로 이동됩니다")
+                Text("해당 쿠폰은 휴지통으로 이동 됩니다")
             }
         }
     }
@@ -144,7 +165,7 @@ struct FilterButton: View {
 // 기프티콘 카드
 struct GifticonCard: View {
     let gifticon: Gifticon
-    let isExpired: Bool
+    let status: String?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -166,53 +187,26 @@ struct GifticonCard: View {
                                 .foregroundColor(.gray)
                         )
                 }
-
-                if gifticon.isUsed {
-                    Text("사용완료")
-                        .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.blue.opacity(0.7))
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                        .padding(8)
-                        .position(x: 140, y: 10)
-                } else if gifticon.expirationDate <= Date() {
-                    Text("만료")
-                        .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.gray.opacity(0.7))
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                        .padding(8)
-                        .position(x: 140, y: 10)
-                }
+                
+                Text(status ?? "")
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(status == "사용 완료" ? Color.blue.opacity(0.7) : Color.gray.opacity(0.7))
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+                    .padding(8)
+                    .position(x: 140, y: 10)
             }
-
+            
             Text(gifticon.brand)
                 .font(.caption)
                 .foregroundColor(.gray)
-
+            
             Text(gifticon.productName)
                 .font(.headline)
                 .lineLimit(1)
-
-            HStack {
-                Text("\(gifticon.price.formattedWithComma)원")
-                    .fontWeight(.bold)
-
-                Text("\(gifticon.discount)%")
-                    .foregroundColor(.red)
-                    .font(.caption)
-                    .fontWeight(.bold)
-            }
-
-            Text("\(gifticon.originalPrice.formattedWithComma)원")
-                .font(.caption)
-                .foregroundColor(.gray)
-                .strikethrough()
-
+            
             Text("\(gifticon.formattedExpiryDate) 까지")
                 .font(.caption)
                 .foregroundColor(.gray)
@@ -221,7 +215,6 @@ struct GifticonCard: View {
         .background(Color.white)
         .cornerRadius(12)
         .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-        .opacity(isExpired ? 0.7 : 1.0)
     }
 }
 
@@ -234,5 +227,5 @@ extension Int {
 }
 
 #Preview {
-    ExpiredView()
+    ExpiredView(deletedGifticons: .constant([]))
 }
