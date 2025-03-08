@@ -45,7 +45,8 @@ struct TrashView: View {
                                             Image(systemName: "xmark.circle.fill")
                                                 .resizable()
                                                 .frame(width: 50, height: 50)
-                                                .foregroundColor(.red)
+                                                // 쿠폰이 선택되면 red로 색상 변경
+                                                .foregroundColor(selectedGifticon == gifticon ? .red : .gray)
                                                 .background(Circle().fill(Color.white).opacity(0.8))
                                                 .clipShape(Circle())
                                         }
@@ -77,9 +78,13 @@ struct TrashView: View {
                         print("\(selected.productName) 삭제됨")
                     }
                     showDeleteAlert = false
+                    // 삭제 후 선택 초기화 - 아이콘 회색
+                    selectedGifticon = nil
                 }
                 Button("취소", role: .cancel) {
                     showDeleteAlert = false
+                    // 삭제 후 선택 초기화 - 아이콘 회색
+                    selectedGifticon = nil
                 }
             } message: {
                 Text("해당 쿠폰은 완전히 삭제됩니다")
