@@ -8,6 +8,7 @@
 import SwiftUI
 import PhotosUI
 import SwiftData
+import Vision
 
 struct ContentView: View {
     @State private var selectedTab = 0 // 0: 보유, 1: 사용·만료, 2: 설정
@@ -41,7 +42,7 @@ struct ContentView: View {
     }
 }
 
-// 쿠폰 타입 enum (만약 다른 곳에서 사용하지 않는다면 제거 가능합니다)
+// 쿠폰 타입 enum
 enum GifticonType {
     case available
     case expired
@@ -55,16 +56,11 @@ struct AvailableGifticonView: View {
     @Query private var availableGifticons: [Gifticon]
     @Environment(\.modelContext) private var modelContext
     
-    // PhotoPicker 관련 상태 변수
+    // 스캐너 관련 상태 변수
     @State private var isShowingPhotoPicker = false
+    @State private var isShowingScanner = false
     @State private var selectedItems: [PhotosPickerItem] = []
-    
-    // 새 기프티콘 정보 상태 변수
-    @State private var newBrand = ""
-    @State private var newProductName = ""
-    @State private var newExpirationDate = Date().addingTimeInterval(30*24*60*60) // 기본 30일 후
-    @State private var newPrice = ""
-    @State private var newOriginalPrice = ""
+    @StateObject private var scanManager = GifticonScanManager()
     
     init() {
         let now = Date()
@@ -111,7 +107,10 @@ struct AvailableGifticonView: View {
                         ScrollView {
                             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                                 ForEach(filteredGifticons) { gifticon in
-                                    GifticonCard(gifticon: gifticon, isExpired: false)
+                                    // 터치했을 때 상세보기로 이동
+                                    NavigationLink(destination: GifticonDetailView(gifticon: gifticon)) {
+                                        GifticonCard(gifticon: gifticon, isExpired: false)
+                                    }
                                 }
                             }
                             .padding()
@@ -120,61 +119,161 @@ struct AvailableGifticonView: View {
                 }
                 
                 // 플러스 버튼
-                Button(action: {
-                    // 사진 피커를 바로 띄우기
-                    isShowingPhotoPicker = true
-                }, label: {
+                Menu {
+                    Button(action: {
+                        isShowingScanner = true
+                    }) {
+                        Label("직접 스캔하기", systemImage: "camera")
+                    }
+                    
+                    Button(action: {
+                        isShowingPhotoPicker = true
+                    }) {
+                        Label("갤러리에서 선택", systemImage: "photo")
+                    }
+                } label: {
                     Image(systemName: "plus.circle.fill")
                         .imageScale(.large)
                         .font(.largeTitle)
                         .foregroundStyle(.orange)
                         .padding()
-                })
+                }
                 .padding()
             }
             .navigationTitle("내쿠폰함")
             .navigationBarTitleDisplayMode(.inline)
             
-            // 사진 선택 기능
-            .photosPicker(isPresented: $isShowingPhotoPicker, selection: $selectedItems, maxSelectionCount: 0, matching: .images) // maxSelectionCount: 0 -> 무제한 선택
+            // 갤러리에서 사진 선택 - 여러장 선택 가능
+            .photosPicker(isPresented: $isShowingPhotoPicker, selection: $selectedItems, matching: .images)
             .onChange(of: selectedItems) { oldValue, newValue in
-                // 선택된 항목들이 변경될 때마다 처리되는 로직
-                print("선택된 이미지: \(newValue.count)개")
+                if !newValue.isEmpty {
+                    // 각 이미지 처리
+                    for item in newValue {
+                        processImageDirectly(from: item)
+                    }
+                    // 처리 후 선택 항목 초기화
+                    selectedItems = []
+                }
             }
             
-            // "추가" 버튼: 포토 피커에서 선택한 이미지를 처리
-            .photosPicker(isPresented: $isShowingPhotoPicker, selection: $selectedItems, maxSelectionCount: 0, matching: .images)
-            .onChange(of: selectedItems) { _, newValue in
-                // 선택된 항목이 있을 때 처리
-                if !newValue.isEmpty {
-                    addSelectedImages()
+            // 카메라로 직접 스캔
+            .sheet(isPresented: $isShowingScanner) {
+                if #available(iOS 16.0, *) {
+                    VisionKitScannerView { scannedImages in
+                        if let firstImage = scannedImages.first {
+                            // 카메라로 스캔한 경우에는 스캔 결과 화면 유지
+                            scanManager.recognizeTextFromImage(firstImage)
+                        }
+                    }
+                } else {
+                    Text("iOS 16 이상에서만 지원합니다.")
                 }
+            }
+            
+            // 카메라 스캔에 대한 결과 화면 (유지)
+            .sheet(isPresented: $scanManager.showScanResult) {
+                ScanResultView(scanManager: scanManager)
             }
         }
     }
     
-    // 선택된 이미지들을 처리하는 함수
-    private func addSelectedImages() {
-        for item in selectedItems {
-            item.loadTransferable(type: Data.self) { result in
-                switch result {
-                case .success(let data):
-                    if let data = data, let uiImage = UIImage(data: data) {
-                        // 이미지를 처리하는 코드 (예: UI에 표시하거나 저장)
-                        print("이미지 처리됨: \(uiImage)")
-                        // 예: 모델에 저장하거나 다른 작업을 수행
+    // 선택한 이미지 직접 처리 (확인 화면 없이)
+    private func processImageDirectly(from item: PhotosPickerItem) {
+        item.loadTransferable(type: Data.self) { result in
+            switch result {
+            case .success(let data):
+                if let data = data, let uiImage = UIImage(data: data) {
+                    DispatchQueue.main.async {
+                        // 이미지 인식 처리
+                        recognizeAndSaveGifticon(image: uiImage)
                     }
-                case .failure(let error):
-                    print("Error loading image: \(error)")
+                }
+            case .failure(let error):
+                print("이미지 로드 오류: \(error)")
+            }
+        }
+    }
+    
+    // 이미지 인식 및 기프티콘 직접 저장
+    private func recognizeAndSaveGifticon(image: UIImage) {
+        // 임시 ScanManager 생성
+        let tempScanManager = GifticonScanManager()
+        
+        // 기본값 설정
+        var imagePath = ""
+        if let imageData = image.jpegData(compressionQuality: 0.8) {
+            if let savedPath = tempScanManager.saveImage(imageData) {
+                imagePath = savedPath
+            }
+        }
+        
+        // 텍스트 인식 수행
+        let requestHandler = VNImageRequestHandler(cgImage: image.cgImage!, options: [:])
+        let request = VNRecognizeTextRequest { request, error in
+            if let error = error {
+                print("텍스트 인식 오류: \(error)")
+                DispatchQueue.main.async {
+                    // 인식 실패시 기본 정보로 저장
+                    saveBasicGifticon(imagePath: imagePath)
+                }
+                return
+            }
+            
+            if let results = request.results as? [VNRecognizedTextObservation] {
+                // 인식된 모든 텍스트 추출
+                let recognizedTexts = results.compactMap { observation -> String? in
+                    return observation.topCandidates(1).first?.string
+                }
+                
+                // 텍스트에서 정보 추출
+                tempScanManager.extractInformation(from: recognizedTexts)
+                
+                DispatchQueue.main.async {
+                    // 인식된 정보로 기프티콘 저장
+                    let newGifticon = Gifticon(
+                        brand: tempScanManager.scanResult.brand,
+                        productName: tempScanManager.scanResult.productName,
+                        expirationDate: tempScanManager.scanResult.expirationDate,
+                        isUsed: false,
+                        imagePath: imagePath
+                    )
+                    
+                    modelContext.insert(newGifticon)
+                    try? modelContext.save()
                 }
             }
         }
+        
+        // 최적의 인식을 위한 설정
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = true
+        
+        do {
+            try requestHandler.perform([request])
+        } catch {
+            print("Request 수행 오류: \(error)")
+            DispatchQueue.main.async {
+                // 오류 발생시 기본 정보로 저장
+                saveBasicGifticon(imagePath: imagePath)
+            }
+        }
+    }
+    
+    // 기본 정보로 기프티콘 저장 (인식 실패 시)
+    private func saveBasicGifticon(imagePath: String) {
+        let newGifticon = Gifticon(
+            brand: "기타",
+            productName: "기프티콘",
+            expirationDate: Date().addingTimeInterval(30*24*60*60), // 30일 후 만료
+            isUsed: false,
+            imagePath: imagePath
+        )
+        
+        modelContext.insert(newGifticon)
+        try? modelContext.save()
     }
 }
 
-
-
-    
 #Preview {
     ContentView()
         .modelContainer(for: Gifticon.self, inMemory: true)

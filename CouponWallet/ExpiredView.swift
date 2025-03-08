@@ -149,20 +149,7 @@ struct GifticonCard: View {
                 .font(.headline)
                 .lineLimit(1)
             
-            HStack {
-                Text("\(gifticon.price.formattedWithComma)원")
-                    .fontWeight(.bold)
-                
-                Text("\(gifticon.discount)%")
-                    .foregroundColor(.red)
-                    .font(.caption)
-                    .fontWeight(.bold)
-            }
             
-            Text("\(gifticon.originalPrice.formattedWithComma)원")
-                .font(.caption)
-                .foregroundColor(.gray)
-                .strikethrough()
             
             Text("\(gifticon.formattedExpiryDate) 까지")
                 .font(.caption)
