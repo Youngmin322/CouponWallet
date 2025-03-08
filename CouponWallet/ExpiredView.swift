@@ -28,7 +28,9 @@ struct ExpiredView: View {
     @State private var expiredGifticons: [Gifticon] = Gifticon.dummyData
     // 삭제된 기프티콘 목록을 부모 뷰(ContentView)에서 전달받음
     @Binding var deletedGifticons: [Gifticon]
-
+    // 다크모드 라이트모드 감지
+    @Environment(\.colorScheme) var colorScheme
+    
     // 상태 필터 배열 (전체, 사용 완료, 만료)
     let gifticonStatusFilter: [String] = ["전체"] + GifticonStatus.allCases.map { $0.rawValue }
     
@@ -44,7 +46,7 @@ struct ExpiredView: View {
             return selectedGifticonStatusFilter == "전체" || status == selectedGifticonStatusFilter
         }
     }
-
+    
     // 정렬된 기프티콘 목록 반환
     var sortedGifticons: [Gifticon] {
         filteredGifticons.sorted {
@@ -57,15 +59,15 @@ struct ExpiredView: View {
             VStack(spacing: 0) {
                 // 사용 완료 / 만료 필터 옵션만 유지
                 //ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(gifticonStatusFilter, id: \.self) { filter in
-                            FilterButton(title: filter, isSelected: filter == selectedGifticonStatusFilter) {
-                                selectedGifticonStatusFilter = filter
-                            }
+                HStack(spacing: 10) {
+                    ForEach(gifticonStatusFilter, id: \.self) { filter in
+                        FilterButton(title: filter, isSelected: filter == selectedGifticonStatusFilter) {
+                            selectedGifticonStatusFilter = filter
                         }
                     }
-                    .padding(.horizontal)
-                    .padding(.vertical, 10)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 10)
                 //}
                 
                 
@@ -90,7 +92,7 @@ struct ExpiredView: View {
                                             Image(systemName: "checkmark.circle.fill")
                                                 .resizable()
                                                 .frame(width: 50, height: 50)
-                                                // 쿠폰이 선택되면 red로 색상 변경 
+                                            // 쿠폰이 선택되면 red로 색상 변경
                                                 .foregroundColor(selectedGifticon == gifticon ? .red : .gray)
                                                 .background(Circle().fill(Color.white).opacity(0.8))
                                                 .clipShape(Circle())
@@ -113,7 +115,7 @@ struct ExpiredView: View {
                         sortByDateDesc.toggle()
                     } label: {
                         Image(systemName: "arrow.up.arrow.down")
-                            .foregroundStyle(.black)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                     }
                     // 체크 모드 활성화를 통해 선택한 쿠폰을 휴지통으로 보냄
                     Button {
@@ -146,6 +148,8 @@ struct ExpiredView: View {
                 Text("해당 쿠폰은 휴지통으로 이동 됩니다")
             }
         }
+        // 배경색 변경
+        .background(colorScheme == .dark ? Color.black : Color.white)
     }
 }
 
@@ -155,14 +159,16 @@ struct FilterButton: View {
     let isSelected: Bool
     let action: () -> Void
     
+    @Environment(\.colorScheme) var colorScheme
+    
     var body: some View {
         Button(action: action) {
             Text(title)
                 .fontWeight(isSelected ? .bold : .regular)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(isSelected ? Color.black : Color.gray.opacity(0.1))
-                .foregroundColor(isSelected ? .white : .black)
+                .background(isSelected ? (colorScheme == .dark ? Color.white : Color.black) : Color.gray.opacity(0.1))
+                .foregroundColor(isSelected ? (colorScheme == .dark ? .black : .white) : (colorScheme == .dark ? .white : .black))
                 .cornerRadius(20)
         }
     }
@@ -172,7 +178,7 @@ struct FilterButton: View {
 struct GifticonCard: View {
     let gifticon: Gifticon
     let status: String?
-    
+    @Environment(\.colorScheme) var colorScheme
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack {
@@ -218,9 +224,9 @@ struct GifticonCard: View {
                 .foregroundColor(.gray)
         }
         .padding(12)
-        .background(Color.white)
+        .background(colorScheme == .dark ? Color.gray.opacity(0.2) : Color.white)
         .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .shadow(color: colorScheme == .dark ? Color.clear : Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
     }
 }
 

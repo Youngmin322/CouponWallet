@@ -20,7 +20,7 @@ struct SettingView: View {
                 }
                 
                 Section(header: Text("앱 설정")) {
-                    NavigationLink("테마 설정", destination: Text("테마 설정 화면"))
+                    NavigationLink("테마 설정", destination: ThemeView())
                     NavigationLink("언어 설정", destination: Text("언어 설정 화면"))
                     NavigationLink("정렬 기준", destination: Text("정렬 기준 화면"))
                 }
