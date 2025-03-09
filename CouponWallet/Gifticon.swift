@@ -16,23 +16,14 @@ class Gifticon {
     var productName: String
     var imagePath: String
     var isUsed: Bool
-    var price: Int
-    var originalPrice: Int
     
-    init(brand: String, productName: String, expirationDate: Date, isUsed: Bool, imagePath: String, price: Int, originalPrice: Int) {
+    init(brand: String, productName: String, expirationDate: Date, isUsed: Bool, imagePath: String) {
         self.id = UUID()
         self.brand = brand
         self.productName = productName
         self.expirationDate = expirationDate
         self.isUsed = isUsed
         self.imagePath = imagePath
-        self.price = price
-        self.originalPrice = originalPrice
-    }
-    
-    var discount: Int {
-        guard originalPrice > 0 else { return 0 }
-        return Int(Double(originalPrice - price) / Double(originalPrice) * 100)
     }
     
     var formattedExpiryDate: String {

@@ -149,20 +149,7 @@ struct GifticonCard: View {
                 .font(.headline)
                 .lineLimit(1)
             
-            HStack {
-                Text("\(gifticon.price.formattedWithComma)원")
-                    .fontWeight(.bold)
-                
-                Text("\(gifticon.discount)%")
-                    .foregroundColor(.red)
-                    .font(.caption)
-                    .fontWeight(.bold)
-            }
             
-            Text("\(gifticon.originalPrice.formattedWithComma)원")
-                .font(.caption)
-                .foregroundColor(.gray)
-                .strikethrough()
             
             Text("\(gifticon.formattedExpiryDate) 까지")
                 .font(.caption)
@@ -176,7 +163,6 @@ struct GifticonCard: View {
     }
 }
 
-// Int 확장 - 금액 형식 (ContentView.swift에 이미 있다면 중복될 수 있습니다)
 extension Int {
     var formattedWithComma: String {
         let numberFormatter = NumberFormatter()
