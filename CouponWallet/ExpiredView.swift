@@ -141,15 +141,17 @@ struct GifticonCard: View {
                 }
             }
             
+            // 브랜드를 메인 타이틀로 표시
             Text(gifticon.brand)
-                .font(.caption)
-                .foregroundColor(.gray)
-            
-            Text(gifticon.productName)
                 .font(.headline)
                 .lineLimit(1)
+                .foregroundColor(.primary)
             
-            
+            // 제품명을 서브타이틀로 표시
+            Text(gifticon.productName)
+                .font(.caption)
+                .foregroundColor(.gray)
+                .lineLimit(1)
             
             Text("\(gifticon.formattedExpiryDate) 까지")
                 .font(.caption)
