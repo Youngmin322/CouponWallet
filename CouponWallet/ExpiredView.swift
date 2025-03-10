@@ -233,8 +233,7 @@ struct GifticonCard: View {
             Text(gifticon.brand)
                 .font(.headline)
                 .lineLimit(1)
-                .foregroundColor(.primary)
-            
+  
             Text("\(gifticon.formattedExpiryDate) 까지")
                 .font(.caption)
                 .foregroundColor(.gray)
