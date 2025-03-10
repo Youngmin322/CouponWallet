@@ -6,12 +6,18 @@ import SwiftData
 struct ScanResult {
     var brand: String = ""
     var productName: String = ""
-    var expirationDate: Date = Date().addingTimeInterval(30*24*60*60)
+    var expirationDate: Date = TextAnalyzer.defaultExpirationDate
     var imagePath: String = ""
     var imageData: Data? = nil
 }
 
 struct TextAnalyzer {
+    // 상수로 정의하여 재사용
+    static let defaultExpirationPeriod: TimeInterval = 30 * 24 * 60 * 60  // 30일
+    static var defaultExpirationDate: Date {
+        return Date().addingTimeInterval(defaultExpirationPeriod)
+    }
+    
     static let dateFormats = [
         "yyyy년MM월dd일", "yyyy년 MM월 dd일", "yyyy.MM.dd", "yyyy-MM-dd",
         "yyyy년M월d일", "yyyy년 M월 d일", "yyyy.M.d", "yyyy-M-d",
@@ -32,22 +38,18 @@ struct TextAnalyzer {
     static let dateKeywords = ["유효기간", "만료일", "사용기한", "까지", "~까지", "유효", "만료"]
     static let knownLabels = ["유효기간", "만료일", "사용기한", "교환처", "주문번호", "결제금액", "상품명"]
     
-    /// 바코드일 가능성이 높은지 확인
+    /// 바코드일 가능성이 높은지 확인 (단순화됨)
     static func isLikelyBarcode(_ text: String) -> Bool {
-        let justDigits = text.replacingOccurrences(of: " ", with: "")
-        
         // 숫자와 공백만 있는지 확인
         let hasOnlyDigitsAndSpaces = text.allSatisfy { $0.isNumber || $0.isWhitespace }
+        if !hasOnlyDigitsAndSpaces { return false }
         
-        // 총 숫자 길이가 8-16자리인지
-        let isWithinBarcodeLength = justDigits.count >= 8 && justDigits.count <= 16
+        let justDigits = text.replacingOccurrences(of: " ", with: "")
         
-        // 4자리씩 나뉘어있는 패턴인지 확인 (예: "7698 8656 3188")
-        let hasBarcodePattern = text.contains { $0.isWhitespace } &&
-        text.components(separatedBy: .whitespacesAndNewlines)
-            .allSatisfy { $0.count == 4 && $0.allSatisfy { $0.isNumber } }
-        
-        return hasOnlyDigitsAndSpaces && (isWithinBarcodeLength || hasBarcodePattern)
+        // 바코드 길이 확인 또는 바코드 패턴 확인 (간소화)
+        return justDigits.count >= 8 && justDigits.count <= 16 ||
+               text.components(separatedBy: .whitespacesAndNewlines)
+                   .allSatisfy { $0.count == 4 && $0.allSatisfy { $0.isNumber } }
     }
     
     /// 순수 날짜 패턴만 있는지 확인
@@ -105,7 +107,24 @@ struct TextAnalyzer {
         return false
     }
     
-    /// 문자열에서 날짜 추출 (주 함수)
+    /// 문자열에서 날짜 문자열 추출
+    static func extractDateString(from text: String) -> String? {
+        for pattern in datePatterns {
+            do {
+                let regex = try NSRegularExpression(pattern: pattern)
+                let range = NSRange(location: 0, length: text.utf16.count)
+                if let match = regex.firstMatch(in: text, options: [], range: range),
+                   let matchRange = Range(match.range, in: text) {
+                    return String(text[matchRange])
+                }
+            } catch {
+                continue
+            }
+        }
+        return nil
+    }
+    
+    /// 문자열에서 날짜 추출 (주 함수) - 중복 제거됨
     static func extractDate(from text: String, checkBarcode: Bool = true) -> Date? {
         let cleanedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "~", with: "")
@@ -125,81 +144,67 @@ struct TextAnalyzer {
         
         for format in dateFormats {
             dateFormatter.dateFormat = format
-            if let date = dateFormatter.date(from: cleanedText) {
-                if date > fiveYearsAgo && date < fiveYearsLater {
-                    return date
-                }
+            if let date = dateFormatter.date(from: cleanedText),
+               date > fiveYearsAgo && date < fiveYearsLater {
+                return date
             }
         }
         
-        // 2. 정규식으로 날짜 패턴 추출
-        for pattern in datePatterns {
-            do {
-                let regex = try NSRegularExpression(pattern: pattern)
-                let nsString = cleanedText as NSString
-                let matches = regex.matches(in: cleanedText, range: NSRange(location: 0, length: nsString.length))
-                
-                for match in matches {
-                    let dateSubstring = nsString.substring(with: match.range)
-                    let cleanDateSubstring = dateSubstring.replacingOccurrences(of: "까지", with: "")
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                    
-                    // 형식으로 날짜 시도
-                    for format in dateFormats {
-                        dateFormatter.dateFormat = format
-                        if let date = dateFormatter.date(from: cleanDateSubstring) {
-                            if date > fiveYearsAgo && date < fiveYearsLater {
-                                return date
-                            }
-                        }
-                    }
-                    
-                    // 년, 월, 일 개별 추출 시도
-                    var year: Int?, month: Int?, day: Int?
-                    
-                    if let yearMatch = try? NSRegularExpression(pattern: yearPattern).firstMatch(
-                        in: cleanDateSubstring,
-                        range: NSRange(location: 0, length: (cleanDateSubstring as NSString).length)
-                    ),
-                       let yearRange = Range(yearMatch.range, in: cleanDateSubstring) {
-                        let yearStr = cleanDateSubstring[yearRange].replacingOccurrences(of: "년", with: "")
-                        year = Int(yearStr)
-                    }
-                    
-                    if let monthMatch = try? NSRegularExpression(pattern: monthPattern).firstMatch(
-                        in: cleanDateSubstring,
-                        range: NSRange(location: 0, length: (cleanDateSubstring as NSString).length)
-                    ),
-                       let monthRange = Range(monthMatch.range, in: cleanDateSubstring) {
-                        let monthStr = cleanDateSubstring[monthRange].replacingOccurrences(of: "월", with: "")
-                        month = Int(monthStr)
-                    }
-                    
-                    if let dayMatch = try? NSRegularExpression(pattern: dayPattern).firstMatch(
-                        in: cleanDateSubstring,
-                        range: NSRange(location: 0, length: (cleanDateSubstring as NSString).length)
-                    ),
-                       let dayRange = Range(dayMatch.range, in: cleanDateSubstring) {
-                        let dayStr = cleanDateSubstring[dayRange].replacingOccurrences(of: "일", with: "")
-                        day = Int(dayStr)
-                    }
-                    
-                    // 년월일로 날짜 생성
-                    if let year = year, let month = month, let day = day {
-                        var components = DateComponents()
-                        components.year = year
-                        components.month = month
-                        components.day = day
-                        
-                        if let date = Calendar.current.date(from: components) {
-                            if date > fiveYearsAgo && date < fiveYearsLater {
-                                return date
-                            }
-                        }
-                    }
+        // 2. 날짜 문자열 추출 후 변환 시도
+        if let dateString = extractDateString(from: cleanedText) {
+            let cleanDateString = dateString.replacingOccurrences(of: "까지", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            // 형식으로 날짜 시도
+            for format in dateFormats {
+                dateFormatter.dateFormat = format
+                if let date = dateFormatter.date(from: cleanDateString),
+                   date > fiveYearsAgo && date < fiveYearsLater {
+                    return date
                 }
-            } catch {
-                continue
+            }
+            
+            // 년, 월, 일 개별 추출 시도
+            var year: Int?, month: Int?, day: Int?
+            
+            if let yearMatch = try? NSRegularExpression(pattern: yearPattern).firstMatch(
+                in: cleanDateString,
+                range: NSRange(location: 0, length: (cleanDateString as NSString).length)
+            ),
+               let yearRange = Range(yearMatch.range, in: cleanDateString) {
+                let yearStr = cleanDateString[yearRange].replacingOccurrences(of: "년", with: "")
+                year = Int(yearStr)
+            }
+            
+            if let monthMatch = try? NSRegularExpression(pattern: monthPattern).firstMatch(
+                in: cleanDateString,
+                range: NSRange(location: 0, length: (cleanDateString as NSString).length)
+            ),
+               let monthRange = Range(monthMatch.range, in: cleanDateString) {
+                let monthStr = cleanDateString[monthRange].replacingOccurrences(of: "월", with: "")
+                month = Int(monthStr)
+            }
+            
+            if let dayMatch = try? NSRegularExpression(pattern: dayPattern).firstMatch(
+                in: cleanDateString,
+                range: NSRange(location: 0, length: (cleanDateString as NSString).length)
+            ),
+               let dayRange = Range(dayMatch.range, in: cleanDateString) {
+                let dayStr = cleanDateString[dayRange].replacingOccurrences(of: "일", with: "")
+                day = Int(dayStr)
+            }
+            
+            // 년월일로 날짜 생성
+            if let year = year, let month = month, let day = day {
+                var components = DateComponents()
+                components.year = year
+                components.month = month
+                components.day = day
+                
+                if let date = Calendar.current.date(from: components),
+                   date > fiveYearsAgo && date < fiveYearsLater {
+                    return date
+                }
             }
         }
         
@@ -223,33 +228,15 @@ struct TextAnalyzer {
             
             for format in dateFormats {
                 dateFormatter.dateFormat = format
-                if let date = dateFormatter.date(from: textWithoutUntil) {
-                    if date > fiveYearsAgo && date < fiveYearsLater {
-                        return date
-                    }
+                if let date = dateFormatter.date(from: textWithoutUntil),
+                   date > fiveYearsAgo && date < fiveYearsLater {
+                    return date
                 }
             }
         }
         
         // 기본값 반환
-        return Date().addingTimeInterval(30*24*60*60)
-    }
-    
-    /// 문자열에서 날짜 문자열 추출
-    static func extractDateString(from text: String) -> String? {
-        for pattern in datePatterns {
-            do {
-                let regex = try NSRegularExpression(pattern: pattern)
-                let range = NSRange(location: 0, length: text.utf16.count)
-                if let match = regex.firstMatch(in: text, options: [], range: range),
-                   let matchRange = Range(match.range, in: text) {
-                    return String(text[matchRange])
-                }
-            } catch {
-                continue
-            }
-        }
-        return nil
+        return defaultExpirationDate
     }
     
     /// 텍스트에서 레이블-값 쌍 찾기
@@ -427,26 +414,9 @@ class GifticonScanManager: ObservableObject {
         
         // 3. 상품명 추출 - 이미 처리된 텍스트를 고려하여 추출
         extractProductName(from: texts, pairs: pairs)
-        
-        // 필요한 경우 기본값 설정
-        if scanResult.brand.isEmpty {
-            scanResult.brand = "기타"
-        }
-        
-        if scanResult.productName.isEmpty {
-            let potentialProductNames = texts.filter { text in
-                // 브랜드명, 날짜 패턴, 바코드가 아닌 텍스트 중에서 선택
-                !text.contains(scanResult.brand) &&
-                text.count > 4 &&
-                !TextAnalyzer.containsPureDatePattern(text) &&
-                !TextAnalyzer.isLikelyBarcode(text)
-            }.sorted { $0.count > $1.count }
-            
-            scanResult.productName = potentialProductNames.first ?? "상품명 미인식"
-        }
     }
 
-    // MARK: - 브랜드 추출
+    // MARK: - 브랜드 추출 (개선됨)
     private func extractBrand(from texts: [String], pairs: [String: String]) {
         // 1. 레이블-값 쌍에서 브랜드 찾기
         if let exchange = pairs["교환처"], !exchange.isEmpty {
@@ -462,6 +432,11 @@ class GifticonScanManager: ObservableObject {
                     return
                 }
             }
+        }
+        
+        // 3. 브랜드를 찾지 못했을 경우 기본값 설정
+        if scanResult.brand.isEmpty {
+            scanResult.brand = "기타"
         }
     }
 
@@ -485,8 +460,7 @@ class GifticonScanManager: ObservableObject {
         for text in dateTexts {
             if let date = TextAnalyzer.extractDate(from: text) {
                 // 기본값과 다른지 확인
-                let defaultDate = Date().addingTimeInterval(30*24*60*60)
-                if !Calendar.current.isDate(date, inSameDayAs: defaultDate) {
+                if !Calendar.current.isDate(date, inSameDayAs: TextAnalyzer.defaultExpirationDate) {
                     scanResult.expirationDate = date
                     return
                 }
@@ -496,8 +470,7 @@ class GifticonScanManager: ObservableObject {
         // 3. 마지막 수단으로 일반 텍스트에서 날짜 패턴 찾기
         for text in texts {
             if let date = TextAnalyzer.extractDate(from: text) {
-                let defaultDate = Date().addingTimeInterval(30*24*60*60)
-                if !Calendar.current.isDate(date, inSameDayAs: defaultDate) {
+                if !Calendar.current.isDate(date, inSameDayAs: TextAnalyzer.defaultExpirationDate) {
                     scanResult.expirationDate = date
                     return
                 }
@@ -561,6 +534,8 @@ class GifticonScanManager: ObservableObject {
         
         if let productName = potentialProductNames.first {
             scanResult.productName = productName
+        } else {
+            scanResult.productName = "상품명 미인식"
         }
     }
     
@@ -584,11 +559,6 @@ class GifticonScanManager: ObservableObject {
     }
 }
 
-
-
-// MARK: - 스캐너 뷰 (iOS 16 이상)
-
-@available(iOS 16.0, *)
 struct VisionKitScannerView: UIViewControllerRepresentable {
     var didFinishScanning: ([UIImage]) -> Void
     
