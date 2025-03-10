@@ -24,19 +24,38 @@ struct ExpiredView: View {
     @State private var isCheckMode: Bool = false
     // 선택한 기프티콘
     @State private var selectedGifticon: Gifticon?
-    // 만료된 기프티콘 데이터 (더미 데이터 사용)
-    @State private var expiredGifticons: [Gifticon] = Gifticon.dummyData
     // 삭제된 기프티콘 목록을 부모 뷰(ContentView)에서 전달받음
     @Binding var deletedGifticons: [Gifticon]
     // 다크모드 라이트모드 감지
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.modelContext) private var modelContext
+    
+    // 만료되었거나 사용된 기프티콘을 SwiftData에서 가져옴
+    @Query private var expiredGifticons: [Gifticon]
     
     // 상태 필터 배열 (전체, 사용 완료, 만료)
     let gifticonStatusFilter: [String] = ["전체"] + GifticonStatus.allCases.map { $0.rawValue }
     
+    init(deletedGifticons: Binding<[Gifticon]>) {
+        self._deletedGifticons = deletedGifticons
+        
+        let now = Date()
+        // 쿼리: 만료되었거나 사용된 기프티콘 필터링
+        let predicate = #Predicate<Gifticon> { gifticon in
+            gifticon.isUsed || gifticon.expirationDate <= now
+        }
+        _expiredGifticons = Query(filter: predicate, sort: [SortDescriptor(\.expirationDate)])
+    }
+    
     // isUsed 및 expirationDate를 기반으로 상태 결정
     func determineGifticonStatus(_ gifticon: Gifticon) -> String {
-        return gifticon.isUsed ? GifticonStatus.used.rawValue : GifticonStatus.expired.rawValue
+        if gifticon.isUsed {
+            return GifticonStatus.used.rawValue
+        } else if gifticon.expirationDate <= Date() {
+            return GifticonStatus.expired.rawValue
+        } else {
+            return ""  // 이 경우는 없어야 함
+        }
     }
     
     // 필터 적용 -> 전체, 사용 완료, 만료
@@ -58,7 +77,6 @@ struct ExpiredView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 // 사용 완료 / 만료 필터 옵션만 유지
-                //ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
                     ForEach(gifticonStatusFilter, id: \.self) { filter in
                         FilterButton(title: filter, isSelected: filter == selectedGifticonStatusFilter) {
@@ -68,8 +86,6 @@ struct ExpiredView: View {
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 10)
-                //}
-                
                 
                 if sortedGifticons.isEmpty {
                     Spacer()
@@ -131,7 +147,9 @@ struct ExpiredView: View {
                     if let selected = selectedGifticon {
                         // 휴지통에 저장 하기 위해 추가
                         deletedGifticons.append(selected)
-                        expiredGifticons.removeAll { $0.id == selected.id }
+                        // 모델 컨텍스트에서 삭제
+                        modelContext.delete(selected)
+                        try? modelContext.save()
                         print("\(selected.productName) 삭제됨")
                     }
                     showDeleteAlert = false
@@ -211,13 +229,11 @@ struct GifticonCard: View {
                     .position(x: 140, y: 10)
             }
             
+            // 브랜드를 메인 타이틀로 표시
             Text(gifticon.brand)
-                .font(.caption)
-                .foregroundColor(.gray)
-            
-            Text(gifticon.productName)
                 .font(.headline)
                 .lineLimit(1)
+                .foregroundColor(.primary)
             
             Text("\(gifticon.formattedExpiryDate) 까지")
                 .font(.caption)
