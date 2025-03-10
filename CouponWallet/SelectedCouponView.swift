@@ -1,10 +1,3 @@
-//
-//  SelectedCouponView.swift
-//  CouponWallet
-//
-//  Created by Sean on 3/6/25.
-//
-
 import SwiftUI
 import SwiftData
 
@@ -15,6 +8,7 @@ struct SelectedCouponView: View {
     // 사용 가능한 모든 기프티콘 쿼리
     @Query private var availableGifticons: [Gifticon]
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss // 네비게이션 dismiss를 위한 환경 변수 추가
     
     // 현재 선택된, 현재 인덱스를 추적하기 위한 상태 변수
     @State private var selectedIndex: Int = 0
@@ -136,14 +130,15 @@ struct SelectedCouponView: View {
                         .foregroundColor(.white)
                         .cornerRadius(10)
                         
-                        NavigationLink(destination: AvailableGifticonView()) {
-                            Text("돌아가기")
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.gray.opacity(0.2))
-                                .cornerRadius(10)
-                                .foregroundColor(.primary)
+                        // 여기가 수정된 부분: NavigationLink 대신 Button 사용하고 dismiss() 호출
+                        Button("돌아가기") {
+                            dismiss() // 현재 뷰를 네비게이션 스택에서 제거
                         }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.gray.opacity(0.2))
+                        .cornerRadius(10)
+                        .foregroundColor(.primary)
                         
                         Button("사용하기") {
                             if let gifticon = currentGifticon {
