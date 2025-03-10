@@ -129,6 +129,7 @@ iOSInjectionProject/
 # End of https://www.toptal.com/developers/gitignore/api/swift,macos
 =======
 >>>>>>> feature/coupon-import
+<<<<<<< HEAD
 =======
 ### Xcode ###
 
@@ -146,3 +147,5 @@ iOSInjectionProject/
 # End of https://www.toptal.com/developers/gitignore/api/macos,xcode,swift
 >>>>>>> origin/feature/selectedCouponView
 *.xcuserstate
+=======
+>>>>>>> 6b0fcb0d876bc70265660752129431fa233996f4
