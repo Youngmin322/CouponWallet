@@ -158,8 +158,7 @@ struct AvailableGifticonView: View {
         ScrollView {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                 ForEach(filteredGifticons) { gifticon in
-                    NavigationLink(destination: SelectedCouponView()) {
-
+                    NavigationLink(destination: SelectedCouponView(selectedGifticon: gifticon)) {
                         GifticonCard(gifticon: gifticon, status: "available")
                     }
                 }

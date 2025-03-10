@@ -197,6 +197,7 @@ struct GifticonCard: View {
     let gifticon: Gifticon
     let status: String?
     @Environment(\.colorScheme) var colorScheme
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack {
@@ -218,15 +219,18 @@ struct GifticonCard: View {
                         )
                 }
                 
-                Text(status ?? "")
-                    .font(.caption)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(status == "사용 완료" ? Color.blue.opacity(0.7) : Color.gray.opacity(0.7))
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-                    .padding(8)
-                    .position(x: 140, y: 10)
+                // "available"이 아닐 때만 상태 표시
+                if let status = status, status != "available" && !status.isEmpty {
+                    Text(status)
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(status == "사용 완료" ? Color.blue.opacity(0.7) : Color.gray.opacity(0.7))
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                        .padding(8)
+                        .position(x: 140, y: 10)
+                }
             }
             
             // 브랜드를 메인 타이틀로 표시

@@ -269,7 +269,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = CouponWallet;
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "캡처한 화면을 앨범에 저장하기 위해 접근합니다";
+				INFOPLIST_KEY_NSCameraUsageDescription = "CouponWallet을 사용하려면 권한이 필요합니다.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "CouponWallet을 사용하려면 권한이 필요합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -300,7 +301,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = CouponWallet;
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "캡처한 화면을 앨범에 저장하기 위해 접근합니다";
+				INFOPLIST_KEY_NSCameraUsageDescription = "CouponWallet을 사용하려면 권한이 필요합니다.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "CouponWallet을 사용하려면 권한이 필요합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
