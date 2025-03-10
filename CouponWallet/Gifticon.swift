@@ -32,3 +32,4 @@ class Gifticon {
         return formatter.string(from: expirationDate)
     }
 }
+
