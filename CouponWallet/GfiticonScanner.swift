@@ -3,8 +3,6 @@ import Vision
 import VisionKit
 import SwiftData
 
-
-/// 스캔 결과를 처리하기 위한 구조체
 struct ScanResult {
     var brand: String = ""
     var productName: String = ""
@@ -13,10 +11,7 @@ struct ScanResult {
     var imageData: Data? = nil
 }
 
-
-/// 텍스트 분석 관련 상수와 유틸리티 메서드들
 struct TextAnalyzer {
-    // 날짜 관련 상수
     static let dateFormats = [
         "yyyy년MM월dd일", "yyyy년 MM월 dd일", "yyyy.MM.dd", "yyyy-MM-dd",
         "yyyy년M월d일", "yyyy년 M월 d일", "yyyy.M.d", "yyyy-M-d",
@@ -36,12 +31,6 @@ struct TextAnalyzer {
     
     static let dateKeywords = ["유효기간", "만료일", "사용기한", "까지", "~까지", "유효", "만료"]
     static let knownLabels = ["유효기간", "만료일", "사용기한", "교환처", "주문번호", "결제금액", "상품명"]
-    
-    /// 바코드인지 확인하는 함수
-    static func isBarcode(_ text: String) -> Bool {
-        let trimmed = text.replacingOccurrences(of: " ", with: "")
-        return trimmed.count >= 8 && trimmed.allSatisfy { $0.isNumber }
-    }
     
     /// 바코드일 가능성이 높은지 확인
     static func isLikelyBarcode(_ text: String) -> Bool {
@@ -246,6 +235,23 @@ struct TextAnalyzer {
         return Date().addingTimeInterval(30*24*60*60)
     }
     
+    /// 문자열에서 날짜 문자열 추출
+    static func extractDateString(from text: String) -> String? {
+        for pattern in datePatterns {
+            do {
+                let regex = try NSRegularExpression(pattern: pattern)
+                let range = NSRange(location: 0, length: text.utf16.count)
+                if let match = regex.firstMatch(in: text, options: [], range: range),
+                   let matchRange = Range(match.range, in: text) {
+                    return String(text[matchRange])
+                }
+            } catch {
+                continue
+            }
+        }
+        return nil
+    }
+    
     /// 텍스트에서 레이블-값 쌍 찾기
     static func findLabelValuePairs(from texts: [String]) -> [String: String] {
         // 인식된 모든 텍스트를 줄바꿈으로 분리
@@ -337,23 +343,6 @@ struct TextAnalyzer {
         }
         return pairs
     }
-    
-    /// 문자열에서 날짜 패턴 추출
-    static func extractDateString(from text: String) -> String? {
-        for pattern in datePatterns {
-            do {
-                let regex = try NSRegularExpression(pattern: pattern)
-                let range = NSRange(location: 0, length: text.utf16.count)
-                if let match = regex.firstMatch(in: text, options: [], range: range),
-                   let matchRange = Range(match.range, in: text) {
-                    return String(text[matchRange])
-                }
-            } catch {
-                continue
-            }
-        }
-        return nil
-    }
 }
 
 // MARK: - 기프티콘 스캔 매니저
@@ -366,8 +355,8 @@ class GifticonScanManager: ObservableObject {
     // 브랜드 키워드 목록
     private let brandKeywords = [
         "스타벅스", "Starbucks", "이디야", "투썸플레이스", "CU", "GS25",
-        "세븐일레븐", "배스킨라빈스", "버거킹", "맥도날드", "롯데리아",
-        "BBQ", "BHC", "교촌", "네이버페이", "카카오페이", "다이소"
+        "세븐일레븐", "베스킨라빈스", "버거킹", "맥도날드", "롯데리아",
+        "BBQ", "BHC", "교촌", "네이버페이", "카카오페이"
     ]
     
     // MARK: - 이미지에서 텍스트 인식
@@ -426,23 +415,18 @@ class GifticonScanManager: ObservableObject {
         }
     }
     
-    // MARK: - 텍스트에서 정보 추출
-    
     func extractInformation(from texts: [String]) {
         // 레이블-값 쌍 찾기
         let pairs = TextAnalyzer.findLabelValuePairs(from: texts)
         
-        // 추출에 사용할 텍스트 저장 (건너뛸 텍스트 추적)
-        var allTexts = texts
-        
         // 1. 브랜드 추출
-        extractBrand(from: texts, pairs: pairs, allTexts: &allTexts)
+        extractBrand(from: texts, pairs: pairs)
         
         // 2. 유효기간 추출
-        extractExpirationDate(from: texts, pairs: pairs, allTexts: &allTexts)
+        extractExpirationDate(from: texts, pairs: pairs)
         
-        // 3. 상품명 추출
-        extractProductName(from: texts, pairs: pairs, allTexts: &allTexts)
+        // 3. 상품명 추출 - 이미 처리된 텍스트를 고려하여 추출
+        extractProductName(from: texts, pairs: pairs)
         
         // 필요한 경우 기본값 설정
         if scanResult.brand.isEmpty {
@@ -450,17 +434,20 @@ class GifticonScanManager: ObservableObject {
         }
         
         if scanResult.productName.isEmpty {
-            let filteredTexts = texts.filter { text in
-                !text.contains(scanResult.brand) && text.count > 4 &&
-                !TextAnalyzer.containsPureDatePattern(text) && !TextAnalyzer.isBarcode(text)
+            let potentialProductNames = texts.filter { text in
+                // 브랜드명, 날짜 패턴, 바코드가 아닌 텍스트 중에서 선택
+                !text.contains(scanResult.brand) &&
+                text.count > 4 &&
+                !TextAnalyzer.containsPureDatePattern(text) &&
+                !TextAnalyzer.isLikelyBarcode(text)
             }.sorted { $0.count > $1.count }
             
-            scanResult.productName = filteredTexts.first ?? "상품명 미인식"
+            scanResult.productName = potentialProductNames.first ?? "상품명 미인식"
         }
     }
-    
+
     // MARK: - 브랜드 추출
-    private func extractBrand(from texts: [String], pairs: [String: String], allTexts: inout [String]) {
+    private func extractBrand(from texts: [String], pairs: [String: String]) {
         // 1. 레이블-값 쌍에서 브랜드 찾기
         if let exchange = pairs["교환처"], !exchange.isEmpty {
             scanResult.brand = exchange
@@ -472,19 +459,14 @@ class GifticonScanManager: ObservableObject {
             for brand in brandKeywords {
                 if text.lowercased().contains(brand.lowercased()) {
                     scanResult.brand = brand
-                    
-                    // 이 텍스트는 상품명 고려 대상에서 제외
-                    if let index = allTexts.firstIndex(of: text) {
-                        allTexts.remove(at: index)
-                    }
                     return
                 }
             }
         }
     }
-    
+
     // MARK: - 유효기간 추출
-    private func extractExpirationDate(from texts: [String], pairs: [String: String], allTexts: inout [String]) {
+    private func extractExpirationDate(from texts: [String], pairs: [String: String]) {
         // 1. 레이블-값 쌍에서 유효기간 찾기
         if let expiryDate = pairs["유효기간"] ?? pairs["만료일"] ?? pairs["사용기한"], !expiryDate.isEmpty {
             if let date = TextAnalyzer.extractDate(from: expiryDate) {
@@ -493,65 +475,37 @@ class GifticonScanManager: ObservableObject {
             }
         }
         
-        // 2. "까지" 패턴 찾기
-        for text in texts {
-            if text.contains("까지") || text.hasSuffix("까지") {
-                if let date = TextAnalyzer.extractDate(from: text) {
-                    // 기본값과 다른지 확인
-                    let defaultDate = Date().addingTimeInterval(30*24*60*60)
-                    if !Calendar.current.isDate(date, inSameDayAs: defaultDate) {
-                        scanResult.expirationDate = date
-                        
-                        // 이 텍스트는 상품명 고려 대상에서 제외
-                        if let index = allTexts.firstIndex(of: text) {
-                            allTexts.remove(at: index)
-                        }
-                        return
-                    }
-                }
-            }
+        // 2. 텍스트에서 날짜 패턴 찾기
+        let dateTexts = texts.filter {
+            $0.contains("까지") ||
+            $0.hasSuffix("까지") ||
+            TextAnalyzer.containsPureDatePattern($0)
         }
         
-        // 3. 순수 날짜 패턴 찾기
-        for text in texts {
-            if TextAnalyzer.containsPureDatePattern(text) {
-                if let date = TextAnalyzer.extractDate(from: text) {
-                    // 기본값과 다른지 확인
-                    let defaultDate = Date().addingTimeInterval(30*24*60*60)
-                    if !Calendar.current.isDate(date, inSameDayAs: defaultDate) {
-                        scanResult.expirationDate = date
-                        
-                        // 이 텍스트는 상품명 고려 대상에서 제외
-                        if let index = allTexts.firstIndex(of: text) {
-                            allTexts.remove(at: index)
-                        }
-                        return
-                    }
-                }
-            }
-        }
-        
-        // 4. 일반 텍스트에서 날짜 찾기
-        for text in texts {
+        for text in dateTexts {
             if let date = TextAnalyzer.extractDate(from: text) {
                 // 기본값과 다른지 확인
                 let defaultDate = Date().addingTimeInterval(30*24*60*60)
                 if !Calendar.current.isDate(date, inSameDayAs: defaultDate) {
                     scanResult.expirationDate = date
-                    
-                    // 이 텍스트는 상품명 고려 대상에서 제외
-                    if let index = allTexts.firstIndex(of: text) {
-                        allTexts.remove(at: index)
-                    }
+                    return
+                }
+            }
+        }
+        
+        // 3. 마지막 수단으로 일반 텍스트에서 날짜 패턴 찾기
+        for text in texts {
+            if let date = TextAnalyzer.extractDate(from: text) {
+                let defaultDate = Date().addingTimeInterval(30*24*60*60)
+                if !Calendar.current.isDate(date, inSameDayAs: defaultDate) {
+                    scanResult.expirationDate = date
                     return
                 }
             }
         }
     }
-    
-    // MARK: - 상품명 추출
-    
-    private func extractProductName(from texts: [String], pairs: [String: String], allTexts: inout [String]) {
+
+    private func extractProductName(from texts: [String], pairs: [String: String]) {
         // 1. 레이블-값 쌍에서 상품명 찾기
         if let productName = pairs["상품명"], !productName.isEmpty {
             scanResult.productName = productName
@@ -560,6 +514,7 @@ class GifticonScanManager: ObservableObject {
         
         // 2. 대괄호로 둘러싸인 텍스트 찾기 (예: [스타벅스] 스타벅스 돌체라떼 T)
         let bracketPattern = "\\[([^\\]]+)\\]\\s*(.+)"
+        
         for text in texts {
             if let range = text.range(of: bracketPattern, options: .regularExpression) {
                 let fullMatch = String(text[range])
@@ -582,13 +537,8 @@ class GifticonScanManager: ObservableObject {
                         // 대괄호 뒤의 내용 (상품명)
                         if match.numberOfRanges > 2 {
                             let productRange = match.range(at: 2)
-                            let productName = nsString.substring(with: productRange).trimmingCharacters(in: .whitespacesAndNewlines)
-                            scanResult.productName = productName
-                            
-                            // 이 텍스트는 상품명 고려 대상에서 제외
-                            if let index = allTexts.firstIndex(of: text) {
-                                allTexts.remove(at: index)
-                            }
+                            scanResult.productName = nsString.substring(with: productRange)
+                                .trimmingCharacters(in: .whitespacesAndNewlines)
                             return
                         }
                     }
@@ -598,19 +548,19 @@ class GifticonScanManager: ObservableObject {
             }
         }
         
-        // 3. 텍스트에서 상품명 찾기
-        let sortedTexts = allTexts.sorted { $0.count > $1.count }
-        
-        for text in sortedTexts {
+        // 3. 텍스트에서 상품명 찾기 (가장 긴 텍스트부터 시도)
+        let potentialProductNames = texts.filter { text in
             // 상품명이 아닐 가능성이 높은 텍스트는 건너뛰기
-            if TextAnalyzer.containsPureDatePattern(text) || text.count < 4 || TextAnalyzer.isBarcode(text) ||
-                text.contains("교환처") || text.contains("주문번호") {
-                continue
-            }
-            
-            // 좋은 후보를 찾음
-            scanResult.productName = text
-            return
+            !TextAnalyzer.containsPureDatePattern(text) &&
+            text.count >= 4 &&
+            !TextAnalyzer.isLikelyBarcode(text) &&
+            !text.contains("교환처") &&
+            !text.contains("주문번호") &&
+            !text.contains(scanResult.brand) // 이미 브랜드로 인식된 텍스트는 제외
+        }.sorted { $0.count > $1.count }
+        
+        if let productName = potentialProductNames.first {
+            scanResult.productName = productName
         }
     }
     
@@ -634,82 +584,7 @@ class GifticonScanManager: ObservableObject {
     }
 }
 
-// MARK: - 스캔 결과 화면
 
-struct ScanResultView: View {
-    @ObservedObject var scanManager: GifticonScanManager
-    @Environment(\.modelContext) var modelContext
-    @Environment(\.dismiss) var dismiss
-    
-    @State private var brand: String
-    @State private var productName: String
-    @State private var expirationDate: Date
-    
-    init(scanManager: GifticonScanManager) {
-        self.scanManager = scanManager
-        _brand = State(initialValue: scanManager.scanResult.brand)
-        _productName = State(initialValue: scanManager.scanResult.productName)
-        _expirationDate = State(initialValue: scanManager.scanResult.expirationDate)
-    }
-    
-    var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("기프티콘 이미지")) {
-                    if let imageData = scanManager.scanResult.imageData, let uiImage = UIImage(data: imageData) {
-                        Image(uiImage: uiImage)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(height: 200)
-                    }
-                }
-                
-                Section(header: Text("기프티콘 정보")) {
-                    TextField("브랜드", text: $brand)
-                    TextField("상품명", text: $productName)
-                    DatePicker("유효기간", selection: $expirationDate, displayedComponents: .date)
-                }
-            }
-            .navigationTitle("스캔 결과")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("취소") {
-                        dismiss()
-                    }
-                }
-                
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("저장") {
-                        saveGifticon()
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-    
-    private func saveGifticon() {
-        // 이미지 저장
-        var imagePath = ""
-        if let imageData = scanManager.scanResult.imageData {
-            if let savedPath = scanManager.saveImage(imageData) {
-                imagePath = savedPath
-            }
-        }
-        
-        // SwiftData에 기프티콘 정보 저장
-        let newGifticon = Gifticon(
-            brand: brand,
-            productName: productName,
-            expirationDate: expirationDate,
-            isUsed: false,
-            imagePath: imagePath
-        )
-        
-        modelContext.insert(newGifticon)
-    }
-}
 
 // MARK: - 스캐너 뷰 (iOS 16 이상)
 
@@ -755,8 +630,6 @@ struct VisionKitScannerView: UIViewControllerRepresentable {
         }
     }
 }
-
-// MARK: - 유틸리티 확장
 
 extension UIView {
     func asImage() -> UIImage {
