@@ -82,7 +82,7 @@ Vision 및 VisionKit 프레임워크를 사용하여:
 ### 요구 사항
 - iOS 18.0+
 - Xcode 16.0+
-- Swift 6.0+
+- Swift 5.0+
   
 ## 🔮 향후 개선 사항
 - 바코드/QR 코드 스캐닝
