@@ -53,7 +53,7 @@ enum GifticonType {
 // 사용 가능한 기프티콘 뷰
 struct AvailableGifticonView: View {
     @State private var selectedFilter = "전체"
-    let filters = ["전체", "스타벅스", "치킨", "CU", "GS25", "기타"]
+    let filters = ["전체", "편의점", "카페", "치킨", "기타"]
     
     @Query private var availableGifticons: [Gifticon]
     @Environment(\.modelContext) private var modelContext
@@ -81,10 +81,11 @@ struct AvailableGifticonView: View {
     
     // 필터링 로직을 별도 함수로 분리
     private func getFilteredGifticons() -> [Gifticon] {
-        if selectedFilter == "전체" {
-            return availableGifticons
-        } else {
-            return availableGifticons.filter { $0.brand == selectedFilter }
+            switch selectedFilter {
+            case "전체":
+                return availableGifticons
+            default:
+                return availableGifticons.filter { $0.category == selectedFilter }
         }
     }
     
@@ -329,7 +330,8 @@ struct AvailableGifticonView: View {
             productName: scanManager.scanResult.productName,
             expirationDate: scanManager.scanResult.expirationDate,
             isUsed: false,
-            imagePath: imagePath
+            imagePath: imagePath,
+            category: scanManager.scanResult.category
         )
         
         modelContext.insert(newGifticon)
@@ -343,7 +345,8 @@ struct AvailableGifticonView: View {
             productName: "기프티콘",
             expirationDate: Date().addingTimeInterval(30*24*60*60), // 30일 후 만료
             isUsed: false,
-            imagePath: imagePath
+            imagePath: imagePath,
+            category: "기타"
         )
         
         modelContext.insert(newGifticon)

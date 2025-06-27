@@ -16,14 +16,16 @@ class Gifticon {
     var productName: String
     var imagePath: String
     var isUsed: Bool
+    var category: String
     
-    init(brand: String, productName: String, expirationDate: Date, isUsed: Bool, imagePath: String) {
+    init(brand: String, productName: String, expirationDate: Date, isUsed: Bool, imagePath: String, category: String) {
         self.id = UUID()
         self.brand = brand
         self.productName = productName
         self.expirationDate = expirationDate
         self.isUsed = isUsed
         self.imagePath = imagePath
+        self.category = category
     }
     
     var formattedExpiryDate: String {

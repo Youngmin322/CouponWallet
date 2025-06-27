@@ -9,6 +9,7 @@ struct ScanResult {
     var expirationDate: Date = TextAnalyzer.defaultExpirationDate
     var imagePath: String = ""
     var imageData: Data? = nil
+    var category: String = "기타"
 }
 
 struct TextAnalyzer {
@@ -418,27 +419,47 @@ class GifticonScanManager: ObservableObject {
 
     // MARK: - 브랜드 추출 (개선됨)
     private func extractBrand(from texts: [String], pairs: [String: String]) {
-        // 1. 레이블-값 쌍에서 브랜드 찾기
         if let exchange = pairs["교환처"], !exchange.isEmpty {
             scanResult.brand = exchange
+            scanResult.category = category(for: exchange)
             return
         }
         
-        // 2. 텍스트에서 브랜드 키워드 찾기
         for text in texts {
             for brand in brandKeywords {
                 if text.lowercased().contains(brand.lowercased()) {
                     scanResult.brand = brand
+                    scanResult.category = category(for: brand)
                     return
                 }
             }
         }
-        
-        // 3. 브랜드를 찾지 못했을 경우 기본값 설정
+
         if scanResult.brand.isEmpty {
             scanResult.brand = "기타"
+            scanResult.category = "기타"
+        } else {
+            scanResult.category = category(for: scanResult.brand)
         }
     }
+    
+    // 브랜드명에 따른 카테고리 반환
+    private func category(for brand: String) -> String {
+        let convenienceStores = ["CU", "GS25", "세븐일레븐"]
+        let cafes = ["스타벅스", "이디야", "투썸플레이스", "빽다방", "메가커피"]
+        let chickenBrands = ["BBQ", "BHC", "교촌", "굽네치킨", "네네치킨"]
+
+        if convenienceStores.contains(where: { brand.localizedCaseInsensitiveContains($0) }) {
+            return "편의점"
+        } else if cafes.contains(where: { brand.localizedCaseInsensitiveContains($0) }) {
+            return "카페"
+        } else if chickenBrands.contains(where: { brand.localizedCaseInsensitiveContains($0) }) {
+            return "치킨"
+        } else {
+            return "기타"
+        }
+    }
+
 
     // MARK: - 유효기간 추출
     private func extractExpirationDate(from texts: [String], pairs: [String: String]) {

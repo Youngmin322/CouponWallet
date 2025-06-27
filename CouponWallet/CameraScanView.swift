@@ -76,7 +76,8 @@ struct ScanResultView: View {
             productName: productName,
             expirationDate: expirationDate,
             isUsed: false,
-            imagePath: imagePath
+            imagePath: imagePath,
+            category: scanManager.scanResult.category
         )
         
         modelContext.insert(newGifticon)
