@@ -1,5 +1,5 @@
 # CouponWallet  
-![Swift](https://img.shields.io/badge/Swift-5.0-F05138?logo=swift)
+![Swift](https://img.shields.io/badge/Swift-5.9-F05138?logo=swift)
 ![Platform](https://img.shields.io/badge/Platforms-iOS%2018.0+-007AFF?logo=apple)
 
 CouponWallet은 디지털 기프티콘을 관리하기 위한 종합적인 iOS 애플리케이션입니다. 이 앱을 통해 사용자는 디지털 쿠폰을 스캔하고, 저장하고, 정리하며, 한 곳에서 편리하게 관리할 수 있습니다.
