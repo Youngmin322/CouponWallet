@@ -14,7 +14,7 @@
 		54A74DE32D7E779200BCBE47 /* Exceptions for "CouponWallet" folder in "CouponWallet" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				info.plist,
+				Resources/info.plist,
 			);
 			target = 549BDD392D79259100B64F07 /* CouponWallet */;
 		};
