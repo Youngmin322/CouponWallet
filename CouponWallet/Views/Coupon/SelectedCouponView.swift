@@ -330,17 +330,3 @@ struct EditableCouponCell: View {
         }
     }
 }
-
-//#Preview {
-//    // For preview purposes, create a dummy gifticon
-//    let gifticon = Gifticon(
-//        brand: "스타벅스",
-//        productName: "아메리카노",
-//        expirationDate: Date().addingTimeInterval(30*24*60*60),
-//        isUsed: false,
-//        imagePath: ""
-//    )
-//    
-//    return SelectedCouponView(selectedGifticon: gifticon)
-//        .modelContainer(for: Gifticon.self, inMemory: true)
-//}
