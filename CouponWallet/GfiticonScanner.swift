@@ -630,3 +630,36 @@ extension UIView {
         }
     }
 }
+
+extension AvailableGifticonView {
+    // 이미지를 Documents 디렉토리에 저장하고 파일명 반환
+    private func saveImageToDocuments(_ image: UIImage) -> String? {
+        guard let imageData = image.jpegData(compressionQuality: 0.8) else { return nil }
+        
+        // Documents 디렉토리 경로 가져오기
+        let documentsPath = FileManager.default.urls(for: .documentDirectory,
+                                                   in: .userDomainMask)[0]
+        
+        // 유니크한 파일명 생성
+        let fileName = UUID().uuidString + ".jpg"
+        let fileURL = documentsPath.appendingPathComponent(fileName)
+        
+        do {
+            try imageData.write(to: fileURL)
+            return fileName // 파일명만 반환 (전체 경로 아님)
+        } catch {
+            print("이미지 저장 실패: \(error)")
+            return nil
+        }
+    }
+    
+    // 수정된 이미지 저장 및 경로 반환 함수
+    private func saveImageAndGetPath(_ image: UIImage, manager: GifticonScanManager) -> String {
+        // Documents 디렉토리에 저장
+        if let fileName = saveImageToDocuments(image) {
+            return fileName
+        }
+        return ""
+    }
+}
+
