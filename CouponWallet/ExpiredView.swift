@@ -198,28 +198,46 @@ struct GifticonCard: View {
     let status: String?
     @Environment(\.colorScheme) var colorScheme
     
+    // 로컬 이미지 로드 함수
+    private func loadLocalImage(from fileName: String) -> UIImage? {
+        guard !fileName.isEmpty else { return nil }
+        
+        let documentsPath = FileManager.default.urls(for: .documentDirectory,
+                                                   in: .userDomainMask)[0]
+        let fileURL = documentsPath.appendingPathComponent(fileName)
+        
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            return UIImage(contentsOfFile: fileURL.path)
+        }
+        return nil
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack {
+                // 이미지 표시 로직 수정
                 if !gifticon.imagePath.isEmpty {
-                    AsyncImage(url: URL(string: gifticon.imagePath)) { image in
-                        image.resizable()
+                    // 로컬 이미지 먼저 시도
+                    if let localImage = loadLocalImage(from: gifticon.imagePath) {
+                        Image(uiImage: localImage)
+                            .resizable()
                             .aspectRatio(contentMode: .fit)
-                    } placeholder: {
-                        Color.gray.opacity(0.1)
-                    }
-                    .frame(height: 100)
-                } else {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.1))
+                            .frame(height: 100)
+                    } else {
+                        // URL 이미지 시도 (기존 코드)
+                        AsyncImage(url: URL(string: gifticon.imagePath)) { image in
+                            image.resizable()
+                                .aspectRatio(contentMode: .fit)
+                        } placeholder: {
+                            defaultImagePlaceholder
+                        }
                         .frame(height: 100)
-                        .overlay(
-                            Text(gifticon.brand)
-                                .foregroundColor(.gray)
-                        )
+                    }
+                } else {
+                    defaultImagePlaceholder
                 }
                 
-                // "available"이 아닐 때만 상태 표시
+                // 상태 표시 (기존 코드와 동일)
                 if let status = status, status != "available" && !status.isEmpty {
                     Text(status)
                         .font(.caption)
@@ -247,6 +265,17 @@ struct GifticonCard: View {
         .background(colorScheme == .dark ? Color.gray.opacity(0.2) : Color.white)
         .cornerRadius(12)
         .shadow(color: colorScheme == .dark ? Color.clear : Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+    }
+    
+    // 기본 이미지 플레이스홀더
+    private var defaultImagePlaceholder: some View {
+        Rectangle()
+            .fill(Color.gray.opacity(0.1))
+            .frame(height: 100)
+            .overlay(
+                Text(gifticon.brand)
+                    .foregroundColor(.gray)
+            )
     }
 }
 

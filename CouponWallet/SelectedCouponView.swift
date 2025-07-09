@@ -171,24 +171,41 @@ struct SelectedCouponView: View {
 struct SelectedCouponCell: View {
     var selectedCoupon: Gifticon
     
+    // 로컬 이미지 로드 함수 (GifticonCard와 동일)
+    private func loadLocalImage(from fileName: String) -> UIImage? {
+        guard !fileName.isEmpty else { return nil }
+        
+        let documentsPath = FileManager.default.urls(for: .documentDirectory,
+                                                   in: .userDomainMask)[0]
+        let fileURL = documentsPath.appendingPathComponent(fileName)
+        
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            return UIImage(contentsOfFile: fileURL.path)
+        }
+        return nil
+    }
+    
     var body: some View {
         Form {
             Section(header: Text("선택 쿠폰")) {
+                // 이미지 표시 로직 수정
                 if !selectedCoupon.imagePath.isEmpty {
-                    AsyncImage(url: URL(string: selectedCoupon.imagePath)) { image in
-                        image
+                    if let localImage = loadLocalImage(from: selectedCoupon.imagePath) {
+                        Image(uiImage: localImage)
                             .resizable()
                             .clipShape(.rect(cornerRadius: 12))
                             .aspectRatio(contentMode: .fit)
                             .padding()
-                    } placeholder: {
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.1))
-                            .frame(height: 200)
-                            .overlay(
-                                Text(selectedCoupon.brand)
-                                    .foregroundColor(.gray)
-                            )
+                    } else {
+                        AsyncImage(url: URL(string: selectedCoupon.imagePath)) { image in
+                            image
+                                .resizable()
+                                .clipShape(.rect(cornerRadius: 12))
+                                .aspectRatio(contentMode: .fit)
+                                .padding()
+                        } placeholder: {
+                            defaultImagePlaceholder
+                        }
                     }
                 } else {
                     Image(systemName: "gift")
@@ -198,6 +215,7 @@ struct SelectedCouponCell: View {
                         .padding()
                 }
                 
+                // 나머지 UI 코드는 동일...
                 HStack {
                     Text("상품명")
                         .foregroundColor(.gray)
@@ -233,6 +251,16 @@ struct SelectedCouponCell: View {
                 }
             }
         }
+    }
+    
+    private var defaultImagePlaceholder: some View {
+        Rectangle()
+            .fill(Color.gray.opacity(0.1))
+            .frame(height: 200)
+            .overlay(
+                Text(selectedCoupon.brand)
+                    .foregroundColor(.gray)
+            )
     }
 }
 
